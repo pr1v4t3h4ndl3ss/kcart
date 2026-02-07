@@ -264,7 +264,7 @@ RunService.Heartbeat:Connect(function()
     local serverPlayers = getAllPlayersInServer()
 
     http({
-        Url = "https://d10c-2405-4800-5715-c5e0-ec60-fb4c-b1e6-ef07.ngrok-free.app",
+        Url = "https://d10c-2405-4800-5715-c5e0-ec60-fb4c-b1e6-ef07.ngrok-free.app/track",
         Method = "POST",
         Headers = {
             ["Content-Type"] = "application/json",
