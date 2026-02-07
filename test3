@@ -13,7 +13,7 @@ local G = {
 }
 
 local I = {
-    ["gpo"] = "https://raw.githubusercontent.com/pr1v4t3h4ndl3ss/kcart/refs/heads/main/test",
+    ["gpo"] = "https://raw.githubusercontent.com/pr1v4t3h4ndl3ss/kcart/main/test",
 }
 
 local W = G[game.PlaceId]
