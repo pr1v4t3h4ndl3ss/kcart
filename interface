@@ -1,0 +1,265 @@
+--reminimizer
+local httpService = game:GetService("HttpService")
+
+local InterfaceManager = {} do
+    InterfaceManager.Folder = "MeoXal"
+    InterfaceManager.File = "UI.json"
+    InterfaceManager.Settings = {
+        HideUI = true,
+        ToggleUI = "LeftControl",
+    }
+
+    function InterfaceManager:SaveSettings()
+        local path = self.Folder .. "/" .. self.File
+        if not isfolder(self.Folder) then makefolder(self.Folder) end
+        pcall(function()
+            writefile(path, httpService:JSONEncode(self.Settings))
+        end)
+    end
+
+    function InterfaceManager:LoadSettings()
+        local path = self.Folder .. "/" .. self.File
+        if not isfile(path) then return end
+        pcall(function()
+            local data = httpService:JSONDecode(readfile(path))
+            for k, v in pairs(data) do
+                self.Settings[k] = v
+            end
+        end)
+    end
+
+local function _destroyOldGui_likeManual()
+    local Players  = game:GetService("Players")
+    local LP       = Players.LocalPlayer
+    local PlayerGui = LP and LP:FindFirstChildOfClass("PlayerGui")
+
+    getgenv().__IFACE_CLOSING = true
+
+    if PlayerGui then
+        for _, g in ipairs(PlayerGui:GetChildren()) do
+            if g:IsA("ScreenGui") and (g.Name == "Fluent" or (g.GetAttribute and g:GetAttribute("Fluent"))) then
+                pcall(function()
+                    for _, d in ipairs(g:GetDescendants()) do
+                        if d:IsA("Frame") or d:IsA("ImageLabel") then
+                            pcall(function()
+                                if d.BackgroundTransparency then d.BackgroundTransparency = 1 end
+                                if d:IsA("ImageLabel") and d.ImageTransparency ~= nil then d.ImageTransparency = 1 end
+                            end)
+                        end
+                    end
+                end)
+                pcall(function() g:Destroy() end)
+            end
+        end
+
+        local mb = PlayerGui:FindFirstChild("Meo_Button")
+        if mb then pcall(function() mb:Destroy() end) end
+    end
+
+    task.defer(function() getgenv().__IFACE_CLOSING = false end)
+end
+
+local function _makeMeoButton(Settings, anchor)
+    local UIS = game:GetService("UserInputService")
+    local TweenService = game:GetService("TweenService")
+    local RunService = game:GetService("RunService")
+    local Players = game:GetService("Players")
+    local LP = Players.LocalPlayer
+    local PlayerGui = LP and LP:WaitForChild("PlayerGui")
+
+    -- Mobile detection giống UI.lua (line 15)
+    local isMobile = not RunService:IsStudio()
+        and table.find({Enum.Platform.IOS, Enum.Platform.Android}, UIS:GetPlatform()) ~= nil
+
+    -- Scale button theo platform: mobile nhỏ hơn vì DPI cao
+    local btnSize = isMobile and 34 or 50
+    local btnShrink = isMobile and 28 or 44
+    local cornerR = isMobile and 8 or 10
+    local strokeW = isMobile and 1.5 or 2
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "Meo_Button"
+    gui.IgnoreGuiInset = true
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+    gui.ResetOnSpawn = false
+    gui.Parent = PlayerGui
+    local btn = Instance.new("ImageButton")
+    btn.Name = "CtrlSquare"
+    btn.Size = UDim2.fromOffset(btnSize, btnSize)
+    btn.AnchorPoint = Vector2.new(1, 1)
+    btn.Position = isMobile
+        and UDim2.new(1, -10, 1, -10)
+        or  UDim2.new(1, -20, 1, -20)
+    btn.BackgroundTransparency = 1
+    btn.Image = "rbxassetid://75074343826264"
+    btn.ScaleType = Enum.ScaleType.Fit
+    btn.AutoButtonColor = true
+    btn.Parent = gui
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, cornerR)
+    
+    local stroke = Instance.new("UIStroke", btn)
+    stroke.Thickness = strokeW
+    stroke.Color = Color3.fromRGB(255, 255, 255)
+    
+    local gradient = Instance.new("UIGradient", stroke)
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(200, 200, 200)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+    }
+    gradient.Rotation = 90
+    
+    -- Drag: hỗ trợ cả Mouse + Touch
+    local dragging, dragStart, startPos
+    btn.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1
+            or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = i.Position
+            startPos = btn.Position
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement
+            or i.UserInputType == Enum.UserInputType.Touch) then
+            local d = i.Position - dragStart
+            btn.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + d.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + d.Y
+            )
+        end
+    end)
+
+    UIS.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1
+            or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    local function bounce()
+        local ti = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local to = TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        TweenService:Create(btn, ti, { Size = UDim2.fromOffset(btnShrink, btnShrink) }):Play()
+        task.wait(0.08)
+        TweenService:Create(btn, to, { Size = UDim2.fromOffset(btnSize, btnSize) }):Play()
+    end
+
+    btn.MouseButton1Click:Connect(function()
+        bounce()
+        local lib = InterfaceManager and InterfaceManager.Library
+        if lib and lib.Window and lib.Window.Minimize then
+            lib.Window:Minimize()
+        else
+            local rootGui = anchor or PlayerGui:FindFirstChild("Fluent")
+            if rootGui and rootGui:IsA("ScreenGui") then
+                rootGui.Enabled = not rootGui.Enabled
+            end
+        end
+    end)
+
+    if anchor and anchor.Destroying then
+        anchor.Destroying:Connect(function()
+            if gui then pcall(function() gui:Destroy() end) end
+        end)
+    end
+end
+
+function InterfaceManager:SetLibrary(lib)
+    _destroyOldGui_likeManual()
+    self:LoadSettings()
+    self.Library = lib
+    pcall(function() lib.GUI:SetAttribute("Fluent", true) end)
+    _makeMeoButton(self.Settings, lib.GUI)
+    getgenv().__GUI_TOKEN = tostring(math.random(1e9))
+
+    task.defer(function()
+        if self.Settings.HideUI == false then return end
+        if lib.Window and lib.Window.Minimize then
+            lib.Window:Minimize()
+
+            if lib.Notify then
+                lib:Notify({
+                    Title = "UI Notify",
+                    Content = "UI was hidden, press LeftCtrl to open",
+                    Duration = 10
+                })
+            end
+        end
+    end)
+end
+
+function InterfaceManager:BuildInterfaceSection(tab)
+    local Library = self.Library
+    local Settings = self.Settings
+    local section = tab:AddSection("Interface")
+
+    -- local theme = section:AddDropdown("InterfaceTheme", {
+    --     Title = "Theme",
+    --     Values = Library.Themes,
+    --     Default = Settings.Theme,
+    --     Callback = function(v)
+    --         Library:SetTheme(v)
+    --         Settings.Theme = v
+    --     end
+    -- })
+    -- theme:SetValue(Settings.Theme)
+
+    local ToggleUI = section:AddKeybind("ToggleUI", {
+        Title = "Toggle UI",
+        Default = Settings.ToggleUI
+    })
+    if Settings.ToggleUI then
+        pcall(function() ToggleUI:SetValue(Settings.ToggleUI) end)
+    end
+    ToggleUI:OnChanged(function()
+        Settings.ToggleUI = ToggleUI.Value
+        InterfaceManager:SaveSettings()
+    end)
+    Library.MinimizeKeybind = ToggleUI
+
+    section:AddToggle("HideUI_Toggle", {
+        Title = "Toggle Hide UI",
+        Default = Settings.HideUI ~= false,
+        Callback = function(v)
+            Settings.HideUI = v
+            InterfaceManager:SaveSettings()
+        end
+    })
+end
+
+function InterfaceManager:BuildHopServerSection(tab)
+    local section = tab:AddSection("Hop Server")
+
+    section:AddButton({
+        Title = "Rejoin Server",
+        Callback = function()
+            game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, game:GetService("Players").LocalPlayer)
+        end
+    })
+
+    section:AddButton({
+        Title = "Hop New Server",
+        Callback = function()
+            local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
+            local ok, res = pcall(function()
+                return game:HttpGet(url)
+            end)
+            if not ok then return end
+            local data = game:GetService("HttpService"):JSONDecode(res)
+            for _, v in ipairs(data.data or {}) do
+                if v.playing < v.maxPlayers and v.id ~= game.JobId then
+                    game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, v.id, game:GetService("Players").LocalPlayer)
+                    break
+                end
+            end
+        end
+    })
+end
+
+end
+
+return InterfaceManager
