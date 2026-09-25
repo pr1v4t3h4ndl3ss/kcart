@@ -803,6 +803,7 @@ local Library = {
 	SectionBorderTransparency = 0,
 	SectionDividerTransparency = 0,
 	SectionBgTransparency = 0.85,
+	ActiveToggles = {},
 }
 
 local function isMotor(value)
@@ -1357,6 +1358,17 @@ function Creator.UpdateTheme()
 	if transparency then
 		for _, Motor in next, Creator.TransparencyMotors do
 			Motor:setGoal(Flipper.Instant.new(transparency))
+		end
+	end
+
+	if Library and Library.ActiveToggles then
+		for i = #Library.ActiveToggles, 1, -1 do
+			local t = Library.ActiveToggles[i]
+			if t and t.Elements and t.Elements.Frame and t.Elements.Frame.Parent then
+				if t.UpdateColors then t:UpdateColors(false) end
+			else
+				table.remove(Library.ActiveToggles, i)
+			end
 		end
 	end
 end
@@ -4485,9 +4497,6 @@ ElementsTable.Toggle = (function()
 			BackgroundTransparency = 0.85,
 			BorderSizePixel = 0,
 			Active = false,
-			ThemeTag = {
-				BackgroundColor3 = "Tab",
-			},
 		}, {
 			New("UICorner", {
 				CornerRadius = UDim.new(0, 5),
@@ -4498,9 +4507,6 @@ ElementsTable.Toggle = (function()
 				Transparency = 0.72,
 				Thickness = 1.2,
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-				ThemeTag = {
-					Color = "Tab",
-				},
 			})
 		})
 
@@ -4517,15 +4523,7 @@ ElementsTable.Toggle = (function()
 
 		local ToggleStroke = ToggleBox:FindFirstChild("Stroke")
 
-		function Toggle:OnChanged(Func)
-			Toggle.Changed = Func
-			Func(Toggle.Value)
-		end
-
-		function Toggle:SetValue(Value)
-			Value = not not Value
-			Toggle.Value = Value
-
+		function Toggle:UpdateColors(animate)
 			local currentTheme = (Library.Themes and Library.Themes[Library.Theme]) or (Library.Themes and Library.Themes["Dark"]) or {}
 			local themeAccent = currentTheme.Accent or Color3.fromRGB(245, 185, 35)
 			local tabColor = currentTheme.Tab or Color3.fromRGB(100, 100, 100)
@@ -4536,24 +4534,51 @@ ElementsTable.Toggle = (function()
 			local targetTrans = Toggle.Value and 0 or 1
 			local targetScale = Toggle.Value and UDim2.fromOffset(14, 14) or UDim2.fromOffset(8, 8)
 
-			pcall(function()
-				TweenService:Create(ToggleBox, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					BackgroundColor3 = targetBg,
-					BackgroundTransparency = targetBgTrans,
-				}):Play()
-				if ToggleStroke then
-					TweenService:Create(ToggleStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Color = targetStroke,
-						Transparency = targetStrokeTrans,
+			if animate then
+				pcall(function()
+					TweenService:Create(ToggleBox, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						BackgroundColor3 = targetBg,
+						BackgroundTransparency = targetBgTrans,
 					}):Play()
-				end
-				if Checkmark then
-					TweenService:Create(Checkmark, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						ImageTransparency = targetTrans,
-						Size = targetScale
-					}):Play()
-				end
-			end)
+					if ToggleStroke then
+						TweenService:Create(ToggleStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+							Color = targetStroke,
+							Transparency = targetStrokeTrans,
+						}):Play()
+					end
+					if Checkmark then
+						TweenService:Create(Checkmark, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+							ImageTransparency = targetTrans,
+							Size = targetScale
+						}):Play()
+					end
+				end)
+			else
+				pcall(function()
+					ToggleBox.BackgroundColor3 = targetBg
+					ToggleBox.BackgroundTransparency = targetBgTrans
+					if ToggleStroke then
+						ToggleStroke.Color = targetStroke
+						ToggleStroke.Transparency = targetStrokeTrans
+					end
+					if Checkmark then
+						Checkmark.ImageTransparency = targetTrans
+						Checkmark.Size = targetScale
+					end
+				end)
+			end
+		end
+
+		function Toggle:OnChanged(Func)
+			Toggle.Changed = Func
+			Func(Toggle.Value)
+		end
+
+		function Toggle:SetValue(Value)
+			Value = not not Value
+			Toggle.Value = Value
+
+			Toggle:UpdateColors(true)
 
 			Library:SafeCallback(Toggle.Callback, Toggle.Value)
 			Library:SafeCallback(Toggle.Changed, Toggle.Value)
@@ -4563,6 +4588,10 @@ ElementsTable.Toggle = (function()
 		Creator.AddSignal(ToggleFrame.Frame.MouseButton1Click, function()
 			Toggle:SetValue(not Toggle.Value)
 		end)
+
+		if Library.ActiveToggles then
+			table.insert(Library.ActiveToggles, Toggle)
+		end
 
 		Toggle:SetValue(Toggle.Value)
 
