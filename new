@@ -800,8 +800,8 @@ local Library = {
 	SectionStrokes = {},
 	SectionDividers = {},
 	SectionCards = {},
-	SectionBorderTransparency = 0.72,
-	SectionDividerTransparency = 0.75,
+	SectionBorderTransparency = 0,
+	SectionDividerTransparency = 0,
 	SectionBgTransparency = 0.85,
 }
 
@@ -1942,7 +1942,7 @@ Components.Element = (function()
 				Size = UDim2.new(1, 0, 0, 1),
 				Position = UDim2.new(0, 0, 1, -1),
 				BackgroundColor3 = Color3.fromRGB(100, 100, 100),
-				BackgroundTransparency = Library.SectionDividerTransparency or 0.75,
+				BackgroundTransparency = Library.SectionDividerTransparency or 0,
 				BorderSizePixel = 0,
 				Parent = Element.Frame,
 				ThemeTag = {
@@ -2134,7 +2134,7 @@ Components.Section = (function()
 
 		local CardStroke = New("UIStroke", {
 			Color = Color3.fromRGB(100, 100, 100),
-			Transparency = Library.SectionBorderTransparency or 0.72,
+			Transparency = Library.SectionBorderTransparency or 0,
 			Thickness = 1,
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			ThemeTag = {
@@ -9669,7 +9669,7 @@ end
 
 
 function Library:SetSectionBorderTransparency(Value)
-	Value = tonumber(Value) or 0.72
+	Value = tonumber(Value) or 0
 	Library.SectionBorderTransparency = Value
 	if Library.SectionStrokes then
 		for i = #Library.SectionStrokes, 1, -1 do
@@ -9684,7 +9684,7 @@ function Library:SetSectionBorderTransparency(Value)
 end
 
 function Library:SetDividerTransparency(Value)
-	Value = tonumber(Value) or 0.75
+	Value = tonumber(Value) or 0
 	Library.SectionDividerTransparency = Value
 	if Library.SectionDividers then
 		for i = #Library.SectionDividers, 1, -1 do
@@ -9712,6 +9712,9 @@ function Library:SetSectionBackgroundTransparency(Value)
 		end
 	end
 end
+
+Library.SetSectionDividerTransparency = Library.SetDividerTransparency
+Library.SetSectionBgTransparency = Library.SetSectionBackgroundTransparency
 
 function Library:SetWindowTransparency(Value)
 
